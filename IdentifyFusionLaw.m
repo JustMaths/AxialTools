@@ -107,17 +107,17 @@ intrinsic IdentifyFusionLaw(a::AlgGenElt: eigenvalues := Eigenvalues(a)) -> SetE
   
   if Type(eigenvalues[1]) eq Tup then
     require forall{ t : t in eigenvalues | #t eq 2}: "The eigenvalues aren't given in the required form.";
-    Set_ordered := {@ t[1] : t in eigenvalues @};
+    eigenvalues := {@ t[1] : t in eigenvalues @};
   end if;
   
+  eigenvalues := IndexedSet(eigenvalues); // in case eigenvalues was given as a SeqEnum
+  
   Set_evals := {@ t[1] : t in evals@};
-  require #evals eq #eigenvalues and Set_evals eq Set_ordered: "You have not supplied a valid list of eigenvalues.";
-  // check the order
-    
-  if Set_evals ne Set_ordered then
-    espaces := {@ espaces[Position(Set_ordered, lm)] : lm in Set_evals @};
-    evals := {@ <Set_ordered[i], Dimension(espaces[i])> : i in [1..#evals] @};
-  end if;
+  require Set_evals eq eigenvalues: "You have not supplied a valid list of eigenvalues.";
+  
+  // define so that the eigenvalues are in the desired order
+  espaces := {@ espaces[Position(eigenvalues, lm)] : lm in Set_evals @};
+  evals := {@ <eigenvalues[i], Dimension(espaces[i])> : i in [1..#evals] @};
   
   ebas := [ Basis(U) : U in espaces];
   V := VectorSpaceWithBasis(&cat(ebas));
@@ -151,8 +151,7 @@ intrinsic IdentifyFusionLaw(a::AlgGenElt: eigenvalues := Eigenvalues(a)) -> SetE
     end if;
   end for;
 
-  Seq_ordered := Setseq(Set_ordered);
-  f := map< FL`set -> BaseRing(Parent(a)) | i:->Seq_ordered[i], j:-> Position(Seq_ordered,j)>;
+  f := map< FL`set -> BaseRing(Parent(a)) | i:->eigenvalues[i], j:-> Position(eigenvalues,j)>;
   AssignEvaluation(~FL, f);
   
   return evals, espaces, FL;
@@ -162,12 +161,62 @@ end intrinsic;
 // ========== Functions to impose a fusion law ==========
 //
 //
-intrinsic ImposeMonsterFusionLaw(a::AlgGenElt, S::SetIndx) -> AlgGen, SeqEnum
+/*
+
+Two seperate ways to impose a fusion law: either find the ideal of the algebra such that in the quotient the fusion law holds, otherwise find the quotient of the base ring such that when quotienting out the scalars by that ideal, the algebra has the fusion law.
+
+*/
+function ClearDenominators(v)
+  if IsFinite(BaseRing(v)) then  // in a finite field there are no denominators and Denominator fails
+    return v;
+  else
+    lcm := LCM([ Denominator(r) : r in Eltseq(v) | r ne 0] cat [1]);
+    return lcm*v;
+  end if;
+end function;
+
+/*
+intrinsic IdealOfCoefficientsToImposeFusionLaw(a::AlgGenElt, FL::FusTab) -> AlgGen, SeqEnum
   {
-  
+  For an algebra over a function field, calculate the ideal I over the base ring R of the coefficients such that a semisimple element a has fusion law FL in the algebra over R/I.  Also returns the positions in the fusion law which require change.  Note that FL must have an evaluation map and the eigenvalues must be the same as those of a.
   }
+  require IsIdempotent(a): "The element a must be an idempotent.";
+  require IsSemisimple(a): "The element a must be semisimple.";
+  
+  evals, espaces, FL := IdentifyFusionLaw(a);
+  so, eval_map := HasEvaluation(FL);
+  require so: "The fusion law FL must have an evaluation map.";
+  evals := {@ t[1] : t in evals @};
+  require evals eq Eigenvalues(FL): "a does not have the same eigenvalues as the fusion law.";
+  
+  V := VectorSpaceWithBasis([ ClearDenominators(v) : v in Basis(espace[i]), i in [1..#evals]]);
+  
+  index := Partition([1..Dimension(V)], [ Dimension(espace[i]) : i in [1..#evals]]);
+  
+  // For an elt v in A_i A_j, return the coords which must be in the ideal
+  P := RingOfIntegers(BaseRing(A));
+  
+  function idealelts(v, i, j)
+    coords := ClearDenominators(Coordinates(V, Vector(v)));
     
+    wanted_parts := (evals[i]@@eval_map)*(evals[j]@@eval_map);
+    
+    
+  
+    coords := Coordinates(V, Vector(v));
+    lcm := IsZero(coords) select 1 else LCM([ Denominator(r) : r in coords | r ne 0]); // Clear any denominators
+    coords := [r*lcm : r in coords];
+    
+    real := tar[evals[i]@FT_to_tar, evals[j]@FT_to_tar]@@FT_to_tar;
+    return {@ coords[k] : k in [1..Dimension(V)] | k notin &cat[ index[Position(evals,f)] : f in real] @} diff {@ 0@};
+  end function;
+  
+
+  
+  
+  
 end intrinsic;
+*/
 //
 //
 // ========== Find the Miyamoto automorphisms ==========
