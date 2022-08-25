@@ -47,7 +47,7 @@ end intrinsic;
 Eigenvalues and Eigenspaces
 
 */
-intrinsic Eigenvalues(a::AlgGenElt) -> IndxSet
+intrinsic Eigenvalues(a::AlgGenElt) -> SetIndx
   {
   Returns the Eigenvalues for the adjoint action of a.
   }
@@ -70,7 +70,7 @@ end intrinsic;
 check semisimplicity
 
 */
-intrinsic IsSemisimple(a::AlgGenElt) -> BoolElt, SetEnum, IndxSet
+intrinsic IsSemisimple(a::AlgGenElt) -> BoolElt, SetEnum, SetIndx
   {
   Returns whether the element semisimple.  If true also returns the set of eigenvalues and the eigenspaces.
   }
@@ -91,7 +91,7 @@ end intrinsic;
 Identify fusion law
 
 */
-intrinsic IdentifyFusionLaw(a::AlgGenElt: eigenvalues := Eigenvalues(a)) -> SetEnum, IndxSet, FusLaw
+intrinsic IdentifyFusionLaw(a::AlgGenElt: eigenvalues := Eigenvalues(a)) -> SetEnum, SetIndx, FusLaw
   {
   If the element is semisimple, returns the eigenvalues, eigenspaces and fusion law.  Optional argument to provide an indexed set of eigenvalues in the desired order.
   }
@@ -151,7 +151,7 @@ intrinsic IdentifyFusionLaw(a::AlgGenElt: eigenvalues := Eigenvalues(a)) -> SetE
     end if;
   end for;
 
-  f := map< FL`set -> BaseRing(Parent(a)) | i:->eigenvalues[i], j:-> Position(eigenvalues,j)>;
+  f := map< FL`set -> BaseRing(A) | i:->eigenvalues[i], j:-> Position(eigenvalues,j)>;
   AssignEvaluation(~FL, f);
   
   return evals, espaces, FL;
