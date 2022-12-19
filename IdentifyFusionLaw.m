@@ -226,7 +226,38 @@ intrinsic MiyamotoInvolution(a::AlgGenElt, lm::RngElt) -> AlgMatElt
   {
   The Miyamoto involution for the axis a with respect to the eigenspace lm.  Note the fusion law must be graded and lm be in a part which is mapped to an involution.
   }
+  require IsSemisimple(a) : "The element is not semisimple.";
+
+  evals, espaces, FL := IdentifyFusionLaw(a);
+  evals := [ t[1] : t in evals];
+
+  require lm in evals: "The scalar given is not an eigenvalue.";
+
+  T, gr := FinestAdequateGrading(FL);
+  FLelts := Elements(FL);
+  eval_map := Evaluation(FL);
   
+  so := exists(t_lm){ t : t in FLelts | t@eval_map eq lm};
+  assert so;
+  gr_lm := t_lm@gr;
+  require gr_lm ne T!1: "The eigenvalue given must be non-trivially graded.";
+
+  A := Parent(a);
+
+  plus := [ t : t in FLelts | t@gr ne gr_lm];
+  minus := [ t : t in FLelts | t@gr eq gr_lm];
+
+  plus_pos := [ Position(evals, t@eval_map) : t in plus];
+  minus_pos := [ Position(evals, t@eval_map) : t in minus];
+  
+  ebas := [ Basis(espaces[i]) : i in plus_pos cat minus_pos];
+  CoB := Matrix(&cat(ebas));
+
+  F := BaseRing(A);
+  dim := &+[Dimension(espaces[i]) : i in minus_pos];
+  M := DiagonalJoin(IdentityMatrix(F, Dimension(A)-dim), -IdentityMatrix(F, dim));
+  
+  return CoB^-1*M*CoB;
 end intrinsic;
 
 intrinsic MiyamotoInvolution(a::AlgGenElt) -> AlgMatElt
