@@ -296,8 +296,8 @@ intrinsic MiyamotoInvolution(a::AlgGenElt) -> AlgMatElt
   plus := [ t@eval_map : t in FLelts | t@gr eq T!1];
   minus := [ t@eval_map : t in FLelts | t@gr eq T.1];
   
-  pos := [ espaces[Position(evals, t)] : t in plus];
-  neg := [ espaces[Position(evals, t)] : t in minus];
+  pos := &+[ espaces[Position(evals, t)] : t in plus];
+  neg := &+[ espaces[Position(evals, t)] : t in minus];
   
   return GradedInvolution(pos, neg);
 end intrinsic;
