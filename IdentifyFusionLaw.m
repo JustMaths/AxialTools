@@ -70,7 +70,7 @@ end intrinsic;
 check semisimplicity
 
 */
-intrinsic IsSemisimple(a::AlgGenElt) -> BoolElt, SetEnum, SetIndx
+intrinsic IsSemisimple(a::AlgGenElt) -> BoolElt, SeqEnum, SetIndx
   {
   Returns whether the element semisimple.  If true also returns the set of eigenvalues and the eigenspaces.
   }
@@ -78,7 +78,8 @@ intrinsic IsSemisimple(a::AlgGenElt) -> BoolElt, SetEnum, SetIndx
   
   evals := Eigenvalues(a);
   Sort(~evals, func<x,y | EigenSort(x[1], y[1])>);
-  espaces := {@ Eigenspace(a, t[1]) : t in evals @};
+  // Must be a sequence as the zero subspace could be repeated
+  espaces := [ Eigenspace(a, t[1]) : t in evals ];
   
   if Dimension(A) eq &+[ Dimension(U) : U in espaces] then
     return true, evals, espaces;
@@ -91,7 +92,7 @@ end intrinsic;
 Identify fusion law
 
 */
-intrinsic IdentifyFusionLaw(a::AlgGenElt: eigenvalues := Eigenvalues(a)) -> SetEnum, SetIndx, FusLaw
+intrinsic IdentifyFusionLaw(a::AlgGenElt: eigenvalues := Eigenvalues(a)) -> SetEnum, SeqEnum, FusLaw
   {
   If the element is semisimple, returns the eigenvalues, eigenspaces and fusion law.  Optional argument to provide an indexed set of eigenvalues in the desired order.
   }
@@ -116,7 +117,7 @@ intrinsic IdentifyFusionLaw(a::AlgGenElt: eigenvalues := Eigenvalues(a)) -> SetE
   require Set_evals eq eigenvalues: "You have not supplied a valid list of eigenvalues.";
   
   // define so that the eigenvalues are in the desired order
-  espaces := {@ espaces[Position(eigenvalues, lm)] : lm in Set_evals @};
+  espaces := [ espaces[Position(eigenvalues, lm)] : lm in Set_evals ];
   evals := {@ <eigenvalues[i], Dimension(espaces[i])> : i in [1..#evals] @};
   
   ebas := [ Basis(U) : U in espaces];
