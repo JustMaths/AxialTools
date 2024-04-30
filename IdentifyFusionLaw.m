@@ -117,7 +117,7 @@ intrinsic IdentifyFusionLaw(a::AlgGenElt: eigenvalues := Eigenvalues(a)) -> SetE
   require Set_evals eq eigenvalues: "You have not supplied a valid list of eigenvalues.";
   
   // define so that the eigenvalues are in the desired order
-  espaces := [ espaces[Position(eigenvalues, lm)] : lm in Set_evals ];
+  espaces := [ espaces[Position(Set_evals, lm)] : lm in eigenvalues ];
   evals := {@ <eigenvalues[i], Dimension(espaces[i])> : i in [1..#evals] @};
   
   ebas := [ Basis(U) : U in espaces];
