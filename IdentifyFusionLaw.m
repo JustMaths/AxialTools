@@ -53,7 +53,10 @@ intrinsic Eigenvalues(a::AlgGenElt) -> SetIndx
   }
   ad_a := AdjointMatrix(a);
   evals := IndexedSet(Eigenvalues(ad_a));
-  Sort(~evals, func<x,y | EigenSort(x[1], y[1])>);
+  try
+    Sort(~evals, func<x,y | EigenSort(x[1], y[1])>);
+  catch e;
+  end try;
   
   return evals;
 end intrinsic;
@@ -77,7 +80,10 @@ intrinsic IsSemisimple(a::AlgGenElt) -> BoolElt, SeqEnum, SetIndx
   A := Parent(a);
   
   evals := Eigenvalues(a);
-  Sort(~evals, func<x,y | EigenSort(x[1], y[1])>);
+  try
+    Sort(~evals, func<x,y | EigenSort(x[1], y[1])>);
+  catch e;
+  end try;
   // Must be a sequence as the zero subspace could be repeated
   espaces := [ Eigenspace(a, t[1]) : t in evals ];
   
