@@ -47,12 +47,11 @@ end intrinsic;
 Eigenvalues and Eigenspaces
 
 */
-intrinsic Eigenvalues(a::AlgGenElt) -> SetIndx
+intrinsic Eigenvalues(a::AlgGenElt: adjoint_matrix := AdjointMatrix(a)) -> SetIndx
   {
-  Returns the Eigenvalues for the adjoint action of a.
+  Returns the Eigenvalues for the adjoint action of a.  Optional argument to input the adjoint matrix, if known.
   }
-  ad_a := AdjointMatrix(a);
-  evals := IndexedSet(Eigenvalues(ad_a));
+  evals := IndexedSet(Eigenvalues(adjoint_matrix));
   try
     Sort(~evals, func<x,y | EigenSort(x[1], y[1])>);
   catch e;
@@ -61,12 +60,11 @@ intrinsic Eigenvalues(a::AlgGenElt) -> SetIndx
   return evals;
 end intrinsic;
 
-intrinsic Eigenspace(a::AlgGenElt, lm::RngElt) -> ModTupRng
+intrinsic Eigenspace(a::AlgGenElt, lm::RngElt: adjoint_matrix := AdjointMatrix(a)) -> ModTupRng
   {
-  The lm-eigenspace of the adjoint action of a.
+  The lm-eigenspace of the adjoint action of a.  Optional argument to input the adjoint matrix, if known.
   }
-  ad_a := AdjointMatrix(a);
-  return Eigenspace(ad_a, lm);
+  return Eigenspace(adjoint_matrix, lm);
 end intrinsic;
 /*
 
@@ -79,13 +77,11 @@ intrinsic IsSemisimple(a::AlgGenElt) -> BoolElt, SeqEnum, SetIndx
   }
   A := Parent(a);
   
-  evals := Eigenvalues(a);
-  try
-    Sort(~evals, func<x,y | EigenSort(x[1], y[1])>);
-  catch e;
-  end try;
+  ad_a := AdjointMatrix(a);
+  evals := Eigenvalues(a: adjoint_matrix := ad_a);
+  
   // Must be a sequence as the zero subspace could be repeated
-  espaces := [ Eigenspace(a, t[1]) : t in evals ];
+  espaces := [ Eigenspace(a, t[1]: adjoint_matrix := ad_a) : t in evals ];
   
   if Dimension(A) eq &+[ Dimension(U) : U in espaces] then
     return true, evals, espaces;
@@ -162,6 +158,116 @@ intrinsic IdentifyFusionLaw(a::AlgGenElt: eigenvalues := Eigenvalues(a)) -> SetE
   AssignEvaluation(~FL, f);
   
   return evals, espaces, FL;
+end intrinsic;
+/*
+
+Checking fusion law is a given one
+
+NB This is adapted from some code originally written for the automorphisms package
+
+*/
+/*
+
+A function to check a given fusion law.  Inputs are:
+
+  A       - algebra
+  espace  - an associative array of eigenspaces with keys being the FULL set of eigenvalues for the fusion law
+            NB also include these even if the subspace is empty
+  fus_law - a SeqEnum of tuples <a,b,S>, where a*b = S is what needs checking from the fusion law.
+
+*/
+function check_law(A, espace, fus_law)
+  fusion_set := Keys(espace);
+
+  // first precompute the adjoints for each element in the eigenspace
+  adjs := AssociativeArray([* <lm, [ AdjointMatrix(A!v) : v in Basis(espace[lm])]>
+                                 : lm in fusion_set*]);
+  V := VectorSpace(A);
+  // I := IdentityMatrix(F, Dimension(A));
+  for t in fus_law do
+    a,b,S := Explode(t);
+    // If either eigenspace is empty, then don't need to check
+    if not IsEmpty(adjs[b]) and Dimension(espace[a]) ne 0 then
+      // slightly slower to do this
+      // if not forall{ ad : ad in adjs[b] | BasisMatrix(espace[a])*ad*(&*[adu-s*I : s in S]) eq 0} then
+      // Quicker to take the rows of a matrix than join several subspaces.
+      U := sub<V | Rows(VerticalJoin([ BasisMatrix(espace[a])*ad : ad in adjs[b]]))>;
+      if not U subset &+[espace[s] : s in S] then
+        return false;
+      end if;
+    end if;
+  end for;
+
+  return true;
+end function;
+
+intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> BoolElt
+  {
+  Check if an algebra element u satisfies the Monster fusion law.  Optional argument, fusion_values, to provide the alpha and beta for M(alpha, beta).  Defaults to M(1/4,1/32) fusion law.
+  }
+  require Type(fusion_values) in {SetIndx, SeqEnum} and #fusion_values eq 2 and 1 notin fusion_values and 0 notin fusion_values: "You must provide two distinct non-zero, non-one ring or field elements for the fusion law.";
+
+  require IsIdempotent(u): "The element is not an idempotent";
+  
+  F := Universe(fusion_values);
+  fusion_set := {@ F | 1, 0 @} join IndexedSet(fusion_values);
+  
+  so, evals, espace := IsSemisimple(u);
+  
+  require so: "The element is not semisimple.";
+  
+  // Check we don't have extra eigenvalues
+  if exists(ev){ ev[1] : ev in evals | ev[1] notin fusion_set } then
+    printf "Eigenvalue %o not in %o\n", ev, fusion_set;
+    return false;
+  end if;
+  evals := {@ t[1] : t in evals @};
+  espace := AssociativeArray([* <e, espace[i]> : i->e in evals*]
+              cat [* <e, Eigenspace(u,e)> : e in fusion_set | e notin evals *]);
+  
+  // Check the fusion law
+  al := fusion_set[3];
+  bt := fusion_set[4];
+  // these are the tuples <a,b,S> representing a*b = S in the fusion law
+  // NB don't need to check 1*a
+  fus_law := [ <0, 0, {0}>, <0, al, {al}>, <0, bt, {bt}>, <al, al, {1,0}>, <al, bt, {bt}>, <bt, bt, {1,0,al}> ];
+  
+  return check_law(Parent(u), espace, fus_law);
+end intrinsic;
+
+intrinsic HasJordanFusionLaw(u::AlgGenElt: fusion_value := 1/4)-> BoolElt
+  {
+  Check if an algebra element u satisfies the Jordan fusion law.  Optional argument, fusion_value, to provide the eta for J(eta).  Defaults to J(1/4) fusion law.
+  }
+  require fusion_value notin {0,1}: "The fusion_value cannot be 0, or 1";
+  
+  require IsIdempotent(u): "The element is not an idempotent";
+  
+  F := Parent(fusion_value);
+  fusion_set := {@ F | 1, 0, fusion_value @};
+  
+  so, evals, espace := IsSemisimple(u);
+  
+  require so: "The element is not semisimple.";
+  
+  // Check we don't have extra eigenvalues
+  if exists(ev){ ev[1] : ev in evals | ev[1] notin fusion_set } then
+    printf "Eigenvalue %o not in %o\n", ev, fusion_set;
+    return false;
+  end if;
+  
+  evals := {@ t[1] : t in evals @};
+  espace := AssociativeArray([* <e, espace[i]> : i->e in evals*]
+              cat [* <e, Eigenspace(u,e)> : e in fusion_set | e notin evals *]);
+  
+  // Check the fusion law
+  eta := fusion_set[3];
+
+  // these are the tuples <a,b,S> representing a*b = S in the fusion law
+  // NB don't need to check 1*a
+  fus_law := [ <0, 0, {0}>, <0, eta, {eta}>, <eta, eta, {1,0}> ];
+  
+  return check_law(Parent(u), espace, fus_law);
 end intrinsic;
 //
 //
@@ -309,13 +415,11 @@ intrinsic MiyamotoInvolution(a::AlgGenElt) -> AlgMatElt
   return GradedInvolution(pos, neg);
 end intrinsic;
 
-intrinsic MiyamotoInvolution(a::AlgGenElt, chi::AlgChtrElt) -> AlgMatElt
+intrinsic MiyamotoAutomorphism(a::AlgGenElt, chi::AlgChtrElt) -> AlgMatElt
   {
-  
+  The Miyamoto automorphism for the axis a and character chi.
   }
-  
-  
-  
+  // TO COMPLETE 
   
 end intrinsic;
 
