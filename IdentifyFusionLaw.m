@@ -24,7 +24,21 @@ function EigenSort(x, y)
     return x-y;
   end if;
 end function;
-
+//
+//
+// ========== Functions to check deompositions ==========
+//
+//
+intrinsic Annihilator(A::AlgGen) -> AlgGen
+  {
+  Returns the annihilator of the algebra.
+  }
+  // create the matrix which is the horizontal join of the matrices ad_a for each a in a basis of A.
+  
+  M := HorizontalJoin([AdjointMatrix(u) : u in Basis(A)]);
+  
+  return sub<A | [ A | x : x in Basis(Nullspace(M))]>;
+end intrinsic;
 //
 //
 // ========== Functions to check deompositions ==========
@@ -436,9 +450,9 @@ end intrinsic;
 // ========== Frobenius form ==========
 //
 //
-intrinsic IsFrobeniusForm(frob::Mtrx, A::AlgGen : ideal := ideal<RingOfIntegers(BaseRing(A))|>) -> BoolElt, Tup
+intrinsic IsFrobeniusForm(frob::Mtrx, A::AlgGen) -> BoolElt, Tup
   {
-  Returns whether frob is a frobenius form for the algebra A.  Optional argument of an ideal which equality is checked up to.
+  Returns whether frob is a frobenius form for the algebra A.
   }
   require NumberOfRows(frob) eq NumberOfColumns(frob): "frob must be a square matrix.";
   require NumberOfRows(frob) eq Dimension(A): "frob must have the same dimension as the algebra A.";
@@ -446,9 +460,37 @@ intrinsic IsFrobeniusForm(frob::Mtrx, A::AlgGen : ideal := ideal<RingOfIntegers(
   bas := Basis(A);
   if IsCommutative(A) then
     require IsSymmetric(frob): "frob is not symmetric.";
-    so := forall(err){ <i,j,k> : k in [1..j], j in [1..i], i in [1..#bas] | Numerator(InnerProduct(Vector(bas[i]*bas[j])*frob, Vector(bas[k])) - InnerProduct(Vector(bas[i])*frob, Vector(bas[k]*bas[j]))) in ideal};
+    so := forall(err){ <i,j,k> : k in [1..j], j in [1..i], i in [1..#bas] | InnerProduct(Vector(bas[i]*bas[j])*frob, Vector(bas[k])) - InnerProduct(Vector(bas[i])*frob, Vector(bas[k]*bas[j])) eq 0};
   else
-    so := forall(err){ <i,j,k> : i,j,k in [1..#bas] | Numerator(InnerProduct(Vector(bas[i]*bas[j])*frob, Vector(bas[k])) - InnerProduct(Vector(bas[i])*frob, Vector(bas[k]*bas[j]))) in ideal};
+    so := forall(err){ <i,j,k> : i,j,k in [1..#bas] | InnerProduct(Vector(bas[i]*bas[j])*frob, Vector(bas[k])) - InnerProduct(Vector(bas[i])*frob, Vector(bas[k]*bas[j])) eq 0};
+  end if;
+  if so then
+    return so, _;
+  else
+    return so, err;
+  end if;
+end intrinsic;
+
+intrinsic IsFrobeniusFormUpToIdeal(frob::Mtrx, A::AlgGen, I::.) -> BoolElt, Tup
+  {
+  Returns whether frob is a frobenius form for the algebra A up to an ideal I.
+  }
+  require NumberOfRows(frob) eq NumberOfColumns(frob): "frob must be a square matrix.";
+  require NumberOfRows(frob) eq Dimension(A): "frob must have the same dimension as the algebra A.";
+  
+  try
+    R := RingOfIntegers(BaseRing(A));
+  catch e;
+    require false: "Must be able to take the ring of integers of the field of the algebra.";
+  end try;
+  require I subset R: "I must be an ideal of the ring of integers of the algebra.";
+  
+  bas := Basis(A);
+  if IsCommutative(A) then
+    require IsSymmetric(frob): "frob is not symmetric.";
+    so := forall(err){ <i,j,k> : k in [1..j], j in [1..i], i in [1..#bas] | Numerator(InnerProduct(Vector(bas[i]*bas[j])*frob, Vector(bas[k])) - InnerProduct(Vector(bas[i])*frob, Vector(bas[k]*bas[j]))) in I};
+  else
+    so := forall(err){ <i,j,k> : i,j,k in [1..#bas] | Numerator(InnerProduct(Vector(bas[i]*bas[j])*frob, Vector(bas[k])) - InnerProduct(Vector(bas[i])*frob, Vector(bas[k]*bas[j]))) in I};
   end if;
   if so then
     return so, _;
