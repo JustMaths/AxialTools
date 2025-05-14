@@ -386,7 +386,7 @@ intrinsic MiyamotoInvolution(a::AlgGenElt, lm::RngElt: check_fusion := true) -> 
     so := exists(t_lm){ t : t in FLelts | t@eval_map eq lm};
     assert so;
     gr_lm := t_lm@gr;
-    require gr_lm ne T!1: "The eigenvalue given must be non-trivially graded.";
+    require gr_lm ne Identity(T): "The eigenvalue given must be non-trivially graded.";
 
     A := Parent(a);
 
