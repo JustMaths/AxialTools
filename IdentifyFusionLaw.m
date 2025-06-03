@@ -249,6 +249,42 @@ intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> Bo
   return check_law(Parent(u), espace, fus_law);
 end intrinsic;
 
+intrinsic HasAlmostMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> BoolElt
+  {
+  Check if an algebra element u satisfies the Almost Monster fusion law.  Same as Monster fusion law, except 3*3 = [1,2,3], where the entries of the fusion law are [1,2,3,4].
+  
+  Optional argument, fusion_values, to provide the alpha and beta for M(alpha, beta).  Defaults to M(1/4,1/32) fusion law.
+  }
+  require Type(fusion_values) in {SetIndx, SeqEnum} and #fusion_values eq 2 and 1 notin fusion_values and 0 notin fusion_values: "You must provide two distinct non-zero, non-one ring or field elements for the fusion law.";
+
+  require IsIdempotent(u): "The element is not an idempotent";
+  
+  F := Universe(fusion_values);
+  fusion_set := {@ F | 1, 0 @} join IndexedSet(fusion_values);
+  
+  so, evals, espace := IsSemisimple(u);
+  
+  require so: "The element is not semisimple.";
+  
+  // Check we don't have extra eigenvalues
+  if exists(ev){ ev[1] : ev in evals | ev[1] notin fusion_set } then
+    printf "Eigenvalue %o not in %o\n", ev, fusion_set;
+    return false;
+  end if;
+  evals := {@ t[1] : t in evals @};
+  espace := AssociativeArray([* <e, espace[i]> : i->e in evals*]
+              cat [* <e, Eigenspace(u,e)> : e in fusion_set | e notin evals *]);
+  
+  // Check the fusion law
+  al := fusion_set[3];
+  bt := fusion_set[4];
+  // these are the tuples <a,b,S> representing a*b = S in the fusion law
+  // NB don't need to check 1*a
+  fus_law := [ <0, 0, {0}>, <0, al, {al}>, <0, bt, {bt}>, <al, al, {1,0,al}>, <al, bt, {bt}>, <bt, bt, {1,0,al}> ];
+  
+  return check_law(Parent(u), espace, fus_law);
+end intrinsic;
+
 intrinsic HasJordanFusionLaw(u::AlgGenElt: fusion_value := 1/4)-> BoolElt
   {
   Check if an algebra element u satisfies the Jordan fusion law.  Optional argument, fusion_value, to provide the eta for J(eta).  Defaults to J(1/4) fusion law.
